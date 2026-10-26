@@ -1,0 +1,9 @@
+# Dependências e compilação
+backend/target/
+frontend/node_modules/
+frontend/build/
+
+# Variáveis de ambiente e segredos
+.env
+*.log
+.DS_Store
