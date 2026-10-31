@@ -82,9 +82,18 @@ public class FornecedorService {
         return fornecedorRepository.save(fornecedorExistente);
     }
 
-    public void deletar(Long id) {
+    /**
+     * Realiza a desativação lógica (soft delete) do distribuidor homologado,
+     * preservando a integridade histórica de compras, importações PDF e alertas.
+     */
+    public Fornecedor desativarLogicamente(Long id) {
         Fornecedor fornecedor = buscarPorId(id);
-        fornecedorRepository.delete(fornecedor);
+        fornecedor.setStatus("INATIVO");
+        return fornecedorRepository.save(fornecedor);
+    }
+
+    public void deletar(Long id) {
+        desativarLogicamente(id);
     }
 
     private void validarCamposObrigatorios(Fornecedor fornecedor) {
