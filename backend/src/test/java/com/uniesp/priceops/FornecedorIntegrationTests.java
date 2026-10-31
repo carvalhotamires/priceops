@@ -103,28 +103,29 @@ class FornecedorIntegrationTests {
     }
 
     @Test
-    void deveAtualizarEDeletarFornecedor() throws Exception {
+    void deveAtualizarEDesativarLogicamenteSoftDeleteFornecedor() throws Exception {
         Fornecedor salvo = fornecedorRepository.save(criarFornecedorExemplo("11222333000181", "Hayamax"));
 
         salvo.setPrazoEntregaDias(3);
-        salvo.setStatus("INATIVO");
 
         mockMvc.perform(put("/api/fornecedores/" + salvo.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(salvo)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.prazoEntregaDias", is(3)))
+                .andExpect(jsonPath("$.status", is("ATIVO")));
+
+        // Realiza soft delete (desativação lógica) preservando o registro histórico
+        mockMvc.perform(delete("/api/fornecedores/" + salvo.getId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/fornecedores/" + salvo.getId()))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("INATIVO")));
 
         mockMvc.perform(get("/api/fornecedores")
                         .param("status", "INATIVO"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
-
-        mockMvc.perform(delete("/api/fornecedores/" + salvo.getId()))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/fornecedores/" + salvo.getId()))
-                .andExpect(status().isNotFound());
     }
 }

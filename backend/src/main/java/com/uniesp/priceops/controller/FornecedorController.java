@@ -61,6 +61,16 @@ public class FornecedorController {
         }
     }
 
+    @PatchMapping("/{id}/desativar")
+    public ResponseEntity<?> desativar(@PathVariable Long id) {
+        try {
+            Fornecedor inativado = fornecedorService.desativarLogicamente(id);
+            return ResponseEntity.ok(inativado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletar(@PathVariable Long id) {
         try {

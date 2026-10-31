@@ -28,17 +28,26 @@ public class ProdutoService {
     }
 
     public Produto salvar(Produto produto) {
-        // Critério de aceitação: Preços não podem conter valores negativos
-        if (produto.getPrecoVendaAtual() != null && produto.getPrecoVendaAtual().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("O preço de venda não pode ser negativo.");
-        }
-        if (produto.getPrecoCompraAtual() != null && produto.getPrecoCompraAtual().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("O preço de compra não pode ser negativo.");
+        validarProduto(produto);
+
+        String codigoNormalizado = produto.getCodigo().trim().toUpperCase();
+        produto.setCodigo(codigoNormalizado);
+        produto.setUnidadeMedida(produto.getUnidadeMedida().trim().toUpperCase());
+
+        if (produto.getId() == null && produtoRepository.findByCodigo(codigoNormalizado).isPresent()) {
+            throw new IllegalArgumentException("Já existe um produto cadastrado com o código: " + codigoNormalizado);
         }
 
-        // Validação de código duplicado
-        if (produto.getId() == null && produtoRepository.findByCodigo(produto.getCodigo()).isPresent()) {
-            throw new IllegalArgumentException("Já existe um produto cadastrado com o código: " + produto.getCodigo());
+        if (produto.getEstoqueAtual() == null) {
+            produto.setEstoqueAtual(0);
+        }
+        if (produto.getEstoqueMinimo() == null) {
+            produto.setEstoqueMinimo(0);
+        }
+        if (produto.getStatus() == null || produto.getStatus().trim().isEmpty()) {
+            produto.setStatus("ATIVO");
+        } else {
+            produto.setStatus(produto.getStatus().trim().toUpperCase());
         }
 
         return produtoRepository.save(produto);
@@ -47,17 +56,26 @@ public class ProdutoService {
     public Produto atualizar(Long id, Produto produtoAtualizado) {
         Produto produtoExistente = buscarPorId(id);
 
-        if (produtoAtualizado.getPrecoVendaAtual() != null && produtoAtualizado.getPrecoVendaAtual().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("O preço de venda não pode ser negativo.");
+        if (produtoAtualizado.getCodigo() == null || produtoAtualizado.getCodigo().trim().isEmpty()) {
+            produtoAtualizado.setCodigo(produtoExistente.getCodigo());
         }
 
-        produtoExistente.setNome(produtoAtualizado.getNome());
-        produtoExistente.setCategoria(produtoAtualizado.getCategoria());
-        produtoExistente.setUnidadeMedida(produtoAtualizado.getUnidadeMedida());
+        validarProduto(produtoAtualizado);
+
+        produtoExistente.setNome(produtoAtualizado.getNome().trim());
+        produtoExistente.setCategoria(produtoAtualizado.getCategoria().trim());
+        produtoExistente.setUnidadeMedida(produtoAtualizado.getUnidadeMedida().trim().toUpperCase());
+        produtoExistente.setPrecoCompraAtual(produtoAtualizado.getPrecoCompraAtual());
         produtoExistente.setPrecoVendaAtual(produtoAtualizado.getPrecoVendaAtual());
-        produtoExistente.setEstoqueAtual(produtoAtualizado.getEstoqueAtual());
-        produtoExistente.setEstoqueMinimo(produtoAtualizado.getEstoqueMinimo());
-        produtoExistente.setStatus(produtoAtualizado.getStatus());
+        if (produtoAtualizado.getEstoqueAtual() != null) {
+            produtoExistente.setEstoqueAtual(produtoAtualizado.getEstoqueAtual());
+        }
+        if (produtoAtualizado.getEstoqueMinimo() != null) {
+            produtoExistente.setEstoqueMinimo(produtoAtualizado.getEstoqueMinimo());
+        }
+        if (produtoAtualizado.getStatus() != null && !produtoAtualizado.getStatus().trim().isEmpty()) {
+            produtoExistente.setStatus(produtoAtualizado.getStatus().trim().toUpperCase());
+        }
 
         return produtoRepository.save(produtoExistente);
     }
@@ -65,5 +83,38 @@ public class ProdutoService {
     public void deletar(Long id) {
         Produto produto = buscarPorId(id);
         produtoRepository.delete(produto);
+    }
+
+    private void validarProduto(Produto produto) {
+        if (produto == null) {
+            throw new IllegalArgumentException("Os dados do produto são obrigatórios.");
+        }
+        if (produto.getCodigo() == null || produto.getCodigo().trim().isEmpty()) {
+            throw new IllegalArgumentException("O código de referência do produto é obrigatório.");
+        }
+        if (produto.getNome() == null || produto.getNome().trim().isEmpty()) {
+            throw new IllegalArgumentException("O nome do produto é obrigatório.");
+        }
+        if (produto.getCategoria() == null || produto.getCategoria().trim().isEmpty()) {
+            throw new IllegalArgumentException("A categoria do produto é obrigatória.");
+        }
+        if (produto.getUnidadeMedida() == null || produto.getUnidadeMedida().trim().isEmpty()) {
+            throw new IllegalArgumentException("A unidade de medida (ex: UN, CX) é obrigatória.");
+        }
+        if (produto.getPrecoVendaAtual() == null) {
+            throw new IllegalArgumentException("O preço de venda é obrigatório.");
+        }
+        if (produto.getPrecoVendaAtual().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("O preço de venda não pode ser negativo.");
+        }
+        if (produto.getPrecoCompraAtual() != null && produto.getPrecoCompraAtual().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("O preço de compra não pode ser negativo.");
+        }
+        if (produto.getEstoqueAtual() != null && produto.getEstoqueAtual() < 0) {
+            throw new IllegalArgumentException("O estoque atual não pode ser negativo.");
+        }
+        if (produto.getEstoqueMinimo() != null && produto.getEstoqueMinimo() < 0) {
+            throw new IllegalArgumentException("O estoque mínimo não pode ser negativo.");
+        }
     }
 }

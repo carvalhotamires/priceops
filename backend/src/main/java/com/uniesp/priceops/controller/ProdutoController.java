@@ -26,8 +26,12 @@ public class ProdutoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Produto> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(produtoService.buscarPorId(id));
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(produtoService.buscarPorId(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 
     @PostMapping
@@ -45,14 +49,20 @@ public class ProdutoController {
         try {
             Produto atualizado = produtoService.atualizar(id, produto);
             return ResponseEntity.ok(atualizado);
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        produtoService.deletar(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deletar(@PathVariable Long id) {
+        try {
+            produtoService.deletar(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
 }
