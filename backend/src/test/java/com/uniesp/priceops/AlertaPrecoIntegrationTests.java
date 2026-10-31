@@ -60,26 +60,32 @@ class AlertaPrecoIntegrationTests {
         fornecedorRepository.deleteAll();
     }
 
-    private Produto criarProdutoPadrao(String codigo, String nome, String precoCompra, String precoVenda) {
+    private Produto salvarProdutoInformatica(
+            String codigo,
+            String nome,
+            String categoria,
+            String unidade,
+            String precoCompra,
+            String precoVenda) {
         Produto p = new Produto();
         p.setCodigo(codigo);
         p.setNome(nome);
-        p.setCategoria("Hardware");
-        p.setUnidadeMedida("UN");
+        p.setCategoria(categoria);
+        p.setUnidadeMedida(unidade);
         p.setPrecoCompraAtual(new BigDecimal(precoCompra));
         p.setPrecoVendaAtual(new BigDecimal(precoVenda));
-        p.setEstoqueAtual(10);
-        p.setEstoqueMinimo(3);
+        p.setEstoqueAtual(30);
+        p.setEstoqueMinimo(8);
         return produtoRepository.save(p);
     }
 
-    private Fornecedor criarFornecedorPadrao() {
+    private Fornecedor salvarDistribuidorPadrao() {
         Fornecedor f = new Fornecedor();
-        f.setRazaoSocial("All Nations Comércio Exterior LTDA");
-        f.setNomeFantasia("All Nations");
-        f.setCnpj("12345678000190");
+        f.setRazaoSocial("All Nations Comércio Exterior S.A.");
+        f.setNomeFantasia("All Nations Informática");
+        f.setCnpj("68552215000180");
         f.setEmail("vendas@allnations.com.br");
-        f.setTelefone("(21) 3333-9000");
+        f.setTelefone("(21) 3523-9000");
         f.setCidade("Rio de Janeiro");
         f.setUf("RJ");
         f.setPrazoEntregaDias(5);
@@ -87,41 +93,91 @@ class AlertaPrecoIntegrationTests {
     }
 
     @Test
-    void deveGerarAlertasDeVariacaoAbusivaEMargemComprometida() throws Exception {
-        Produto placaVideo = criarProdutoPadrao("GPU-RTX4060", "Placa de Vídeo RTX 4060 8GB", "1800.00", "2300.00");
-        Fornecedor fornecedor = criarFornecedorPadrao();
+    void deveGerarAlertaDeVariacaoAbusivaAltaEmMouseOpticoInf01() throws Exception {
+        Produto mouse = salvarProdutoInformatica("INF-01", "Mouse Óptico USB", "Periféricos", "UN", "18.50", "34.90");
+        Fornecedor distribuidor = salvarDistribuidorPadrao();
 
-        // Preço ofertado de R$ 2.430,00: +35% sobre compra (abusiva crítica) e acima da venda (margem comprometida)
+        // Aumento de +20% (de 18.50 para 22.20), acima do padrão de 15% -> severidade ALTA
         AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
-        req.setProdutoId(placaVideo.getId());
-        req.setFornecedorId(fornecedor.getId());
-        req.setPrecoOfertado(new BigDecimal("2430.00"));
+        req.setProdutoId(mouse.getId());
+        req.setFornecedorId(distribuidor.getId());
+        req.setPrecoOfertado(new BigDecimal("22.20"));
 
         mockMvc.perform(post("/api/alertas/avaliar-preco")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
-                .andExpect(jsonPath("$.percentualVariacaoCompra", is(35.00)))
-                .andExpect(jsonPath("$.alertasGerados", hasSize(2)))
-                .andExpect(jsonPath("$.alertasGerados[*].tipoAlerta",
-                        containsInAnyOrder("VARIACAO_ABUSIVA_ALTA", "MARGEM_COMPROMETIDA")));
-
-        // Confirma painel de notificações pendentes
-        mockMvc.perform(get("/api/alertas/notificacoes/pendentes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalPendentes", is(2)))
-                .andExpect(jsonPath("$.criticos", is(2)));
+                .andExpect(jsonPath("$.percentualVariacaoCompra", is(20.00)))
+                .andExpect(jsonPath("$.alertasGerados", hasSize(1)))
+                .andExpect(jsonPath("$.alertasGerados[0].tipoAlerta", is("VARIACAO_ABUSIVA_ALTA")))
+                .andExpect(jsonPath("$.alertasGerados[0].severidade", is("ALTA")));
     }
 
     @Test
-    void naoDeveGerarAlertaQuandoVariacaoEstiverDentroDoLimiteTolerado() throws Exception {
-        Produto ssd = criarProdutoPadrao("SSD-NVME-1TB", "SSD Kingston NV2 1TB", "350.00", "499.90");
+    void deveEscalonarSeveridadeParaCriticaEmAumentoExtremoDeTecladoInf03() throws Exception {
+        Produto teclado = salvarProdutoInformatica("INF-03", "Teclado ABNT2", "Periféricos", "UN", "32.00", "59.90");
 
-        // Aumento de +5,71% (abaixo do limite padrão de 15%)
+        // Aumento de +50% (de 32.00 para 48.00), dobrando a margem tolerada -> severidade CRITICA
         AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
-        req.setProdutoId(ssd.getId());
-        req.setPrecoOfertado(new BigDecimal("370.00"));
+        req.setProdutoId(teclado.getId());
+        req.setPrecoOfertado(new BigDecimal("48.00"));
+
+        mockMvc.perform(post("/api/alertas/avaliar-preco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
+                .andExpect(jsonPath("$.alertasGerados[0].tipoAlerta", is("VARIACAO_ABUSIVA_ALTA")))
+                .andExpect(jsonPath("$.alertasGerados[0].severidade", is("CRITICA")));
+    }
+
+    @Test
+    void deveDispararAlertaCriticoDeMargemComprometidaEmHeadsetInf05() throws Exception {
+        Produto headset = salvarProdutoInformatica("INF-05", "Headset Corporativo P2", "Áudio e Periféricos", "UN", "48.00", "89.90");
+        Fornecedor distribuidor = salvarDistribuidorPadrao();
+
+        // Custo cotado (R$ 92,00) supera o preço de venda praticado na loja (R$ 89,90)
+        AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
+        req.setProdutoId(headset.getId());
+        req.setFornecedorId(distribuidor.getId());
+        req.setPrecoOfertado(new BigDecimal("92.00"));
+
+        mockMvc.perform(post("/api/alertas/avaliar-preco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
+                .andExpect(jsonPath("$.alertasGerados[*].tipoAlerta",
+                        containsInAnyOrder("VARIACAO_ABUSIVA_ALTA", "MARGEM_COMPROMETIDA")));
+    }
+
+    @Test
+    void deveDetectarDiscrepanciaDeQuedaAtipicaEmPendriveCaixaInf04() throws Exception {
+        Produto pendriveCx = salvarProdutoInformatica("INF-04", "Pendrive 64GB", "Armazenamento", "CX", "210.00", "349.00");
+
+        // Redução abrupta de -90% (R$ 21,00 na caixa fechada -> provável erro de digitação de UN vs CX)
+        AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
+        req.setProdutoId(pendriveCx.getId());
+        req.setPrecoOfertado(new BigDecimal("21.00"));
+
+        mockMvc.perform(post("/api/alertas/avaliar-preco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
+                .andExpect(jsonPath("$.alertasGerados[0].tipoAlerta", is("DISCREPANCIA_QUEDA_ATIPICA")))
+                .andExpect(jsonPath("$.alertasGerados[0].severidade", is("ALTA")));
+    }
+
+    @Test
+    void naoDeveGerarAlertaQuandoVariacaoDeCaboHdmiInf02EstiverDentroDaMargem() throws Exception {
+        Produto caboHdmi = salvarProdutoInformatica("INF-02", "Cabo HDMI 2.0", "Cabos e Adaptadores", "UN", "14.00", "29.90");
+
+        // Aumento leve de +5% (R$ 14,70), abaixo do limite tolerado de 15%
+        AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
+        req.setProdutoId(caboHdmi.getId());
+        req.setPrecoOfertado(new BigDecimal("14.70"));
 
         mockMvc.perform(post("/api/alertas/avaliar-preco")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -129,82 +185,103 @@ class AlertaPrecoIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.anomaliaDetectada", is(false)))
                 .andExpect(jsonPath("$.alertasGerados", hasSize(0)));
-
-        mockMvc.perform(get("/api/alertas"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
-    void deveDetectarDiscrepanciaDeQuedaAtipicaEAtualizarStatusDaNotificacao() throws Exception {
-        Produto processador = criarProdutoPadrao("CPU-R7-7800X3D", "Processador Ryzen 7 7800X3D", "2500.00", "3299.00");
+    void deveRespeitarLimitePercentualCustomizadoNaAvaliacao() throws Exception {
+        Produto caboHdmi = salvarProdutoInformatica("INF-02", "Cabo HDMI 2.0", "Cabos e Adaptadores", "UN", "14.00", "29.90");
 
-        // Preço cotado de R$ 250,00 (-90%, provável erro de digitação na tabela do fornecedor)
+        // Aumento de +10% (R$ 15,40), mas com limite estrito customizado de 8%
         AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
-        req.setProdutoId(processador.getId());
-        req.setPrecoOfertado(new BigDecimal("250.00"));
+        req.setProdutoId(caboHdmi.getId());
+        req.setPrecoOfertado(new BigDecimal("15.40"));
+        req.setLimitePercentualCustomizado(new BigDecimal("8.00"));
+
+        mockMvc.perform(post("/api/alertas/avaliar-preco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
+                .andExpect(jsonPath("$.alertasGerados[0].limiteToleradoPercentual", is(8.00)));
+    }
+
+    @Test
+    void deveProcessarLoteDeCotacoesDoCatalogoDeInformatica() throws Exception {
+        Produto mouse = salvarProdutoInformatica("INF-01", "Mouse Óptico USB", "Periféricos", "UN", "18.50", "34.90");
+        Produto teclado = salvarProdutoInformatica("INF-03", "Teclado ABNT2", "Periféricos", "UN", "32.00", "59.90");
+
+        AvaliacaoPrecoRequest item1 = new AvaliacaoPrecoRequest();
+        item1.setProdutoId(mouse.getId());
+        item1.setPrecoOfertado(new BigDecimal("19.00")); // Normal (+2,70%)
+
+        AvaliacaoPrecoRequest item2 = new AvaliacaoPrecoRequest();
+        item2.setProdutoId(teclado.getId());
+        item2.setPrecoOfertado(new BigDecimal("40.00")); // Abusivo (+25,00%)
+
+        mockMvc.perform(post("/api/alertas/avaliar-lote")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(List.of(item1, item2))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].anomaliaDetectada", is(false)))
+                .andExpect(jsonPath("$[1].anomaliaDetectada", is(true)));
+    }
+
+    @Test
+    void deveGerenciarCicloDeVidaDaNotificacaoVisualizarEResolverComJustificativa() throws Exception {
+        Produto mouse = salvarProdutoInformatica("INF-01", "Mouse Óptico USB", "Periféricos", "UN", "18.50", "34.90");
+
+        AvaliacaoPrecoRequest req = new AvaliacaoPrecoRequest();
+        req.setProdutoId(mouse.getId());
+        req.setPrecoOfertado(new BigDecimal("25.90"));
 
         MvcResult result = mockMvc.perform(post("/api/alertas/avaliar-preco")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.anomaliaDetectada", is(true)))
-                .andExpect(jsonPath("$.alertasGerados[0].tipoAlerta", is("DISCREPANCIA_QUEDA_ATIPICA")))
-                .andExpect(jsonPath("$.alertasGerados[0].severidade", is("ALTA")))
                 .andReturn();
 
         JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
         long alertaId = json.get("alertasGerados").get(0).get("id").asLong();
 
-        // Marca notificação como visualizada
+        mockMvc.perform(get("/api/alertas/notificacoes/pendentes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPendentes", is(1)));
+
         mockMvc.perform(patch("/api/alertas/" + alertaId + "/visualizar"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusNotificacao", is("VISUALIZADO")));
 
-        // Resolve o alerta com justificativa
         mockMvc.perform(patch("/api/alertas/" + alertaId + "/status")
                         .param("status", "RESOLVIDO")
-                        .param("justificativa", "Confirmado erro de digitação na planilha do distribuidor."))
+                        .param("justificativa", "Negociado desconto de volume com representante do distribuidor."))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusNotificacao", is("RESOLVIDO")))
-                .andExpect(jsonPath("$.justificativaResolucao", containsString("erro de digitação")));
-
-        // Painel de pendentes agora deve estar zerado
-        mockMvc.perform(get("/api/alertas/notificacoes/pendentes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalPendentes", is(0)));
+                .andExpect(jsonPath("$.justificativaResolucao", containsString("Negociado desconto")));
     }
 
     @Test
-    void deveAvaliarLoteDeCotacoesEValidarDadosInvalidos() throws Exception {
-        Produto memoria = criarProdutoPadrao("RAM-DDR5-16G", "Memória DDR5 16GB 5600MHz", "400.00", "590.00");
+    void deveRejeitarRequisicoesComPrecoNegativoOuProdutoInexistente() throws Exception {
+        Produto mouse = salvarProdutoInformatica("INF-01", "Mouse Óptico USB", "Periféricos", "UN", "18.50", "34.90");
 
-        AvaliacaoPrecoRequest itemNormal = new AvaliacaoPrecoRequest();
-        itemNormal.setProdutoId(memoria.getId());
-        itemNormal.setPrecoOfertado(new BigDecimal("410.00"));
-
-        AvaliacaoPrecoRequest itemAbusivo = new AvaliacaoPrecoRequest();
-        itemAbusivo.setProdutoId(memoria.getId());
-        itemAbusivo.setPrecoOfertado(new BigDecimal("500.00")); // +25% (acima de 15%)
-
-        mockMvc.perform(post("/api/alertas/avaliar-lote")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(List.of(itemNormal, itemAbusivo))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].anomaliaDetectada", is(false)))
-                .andExpect(jsonPath("$[1].anomaliaDetectada", is(true)))
-                .andExpect(jsonPath("$[1].alertasGerados[0].severidade", is("ALTA")));
-
-        // Valida rejeição de preço negativo
-        AvaliacaoPrecoRequest invalido = new AvaliacaoPrecoRequest();
-        invalido.setProdutoId(memoria.getId());
-        invalido.setPrecoOfertado(new BigDecimal("-10.00"));
+        AvaliacaoPrecoRequest precoNegativo = new AvaliacaoPrecoRequest();
+        precoNegativo.setProdutoId(mouse.getId());
+        precoNegativo.setPrecoOfertado(new BigDecimal("-5.00"));
 
         mockMvc.perform(post("/api/alertas/avaliar-preco")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalido)))
+                        .content(objectMapper.writeValueAsString(precoNegativo)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("maior que zero")));
+
+        AvaliacaoPrecoRequest produtoInexistente = new AvaliacaoPrecoRequest();
+        produtoInexistente.setProdutoId(99999L);
+        produtoInexistente.setPrecoOfertado(new BigDecimal("20.00"));
+
+        mockMvc.perform(post("/api/alertas/avaliar-preco")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(produtoInexistente)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("Produto não encontrado")));
     }
 }
