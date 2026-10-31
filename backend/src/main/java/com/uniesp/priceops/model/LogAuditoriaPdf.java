@@ -12,7 +12,7 @@ public class LogAuditoriaPdf {
     private Long id;
 
     @Column(nullable = false, length = 40)
-    private String evento; // UPLOAD_SUCESSO, DUPLICIDADE_BLOQUEADA, ARQUIVO_INVALIDO, DOWNLOAD_ARQUIVO, STATUS_ATUALIZADO, ARQUIVO_REMOVIDO
+    private String statusAuditoria; // UPLOAD_SUCESSO, DUPLICIDADE_BLOQUEADA, ARQUIVO_INVALIDO, FORNECEDOR_INATIVO, DOWNLOAD_ARQUIVO, STATUS_ATUALIZADO, ARQUIVO_REMOVIDO
 
     @Column(nullable = false, length = 255)
     private String nomeArquivo;
@@ -23,8 +23,8 @@ public class LogAuditoriaPdf {
     @Column
     private Long tamanhoBytes;
 
-    @Column(name = "arquivo_pdf_id")
-    private Long arquivoPdfId;
+    @Column(name = "importacao_pdf_id")
+    private Long importacaoPdfId;
 
     @Column(name = "fornecedor_id")
     private Long fornecedorId;
@@ -47,8 +47,8 @@ public class LogAuditoriaPdf {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getEvento() { return evento; }
-    public void setEvento(String evento) { this.evento = evento; }
+    public String getStatusAuditoria() { return statusAuditoria; }
+    public void setStatusAuditoria(String statusAuditoria) { this.statusAuditoria = statusAuditoria; }
 
     public String getNomeArquivo() { return nomeArquivo; }
     public void setNomeArquivo(String nomeArquivo) { this.nomeArquivo = nomeArquivo; }
@@ -59,8 +59,8 @@ public class LogAuditoriaPdf {
     public Long getTamanhoBytes() { return tamanhoBytes; }
     public void setTamanhoBytes(Long tamanhoBytes) { this.tamanhoBytes = tamanhoBytes; }
 
-    public Long getArquivoPdfId() { return arquivoPdfId; }
-    public void setArquivoPdfId(Long arquivoPdfId) { this.arquivoPdfId = arquivoPdfId; }
+    public Long getImportacaoPdfId() { return importacaoPdfId; }
+    public void setImportacaoPdfId(Long importacaoPdfId) { this.importacaoPdfId = importacaoPdfId; }
 
     public Long getFornecedorId() { return fornecedorId; }
     public void setFornecedorId(Long fornecedorId) { this.fornecedorId = fornecedorId; }

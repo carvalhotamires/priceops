@@ -11,7 +11,9 @@ public interface LogAuditoriaPdfRepository extends JpaRepository<LogAuditoriaPdf
 
     List<LogAuditoriaPdf> findAllByOrderByDataHoraDesc();
 
-    List<LogAuditoriaPdf> findByEventoIgnoreCaseOrderByDataHoraDesc(String evento);
+    List<LogAuditoriaPdf> findByStatusAuditoriaIgnoreCaseOrderByDataHoraDesc(String statusAuditoria);
 
     List<LogAuditoriaPdf> findByHashSha256OrderByDataHoraDesc(String hashSha256);
+
+    List<LogAuditoriaPdf> findByFornecedorIdOrderByDataHoraDesc(Long fornecedorId);
 }

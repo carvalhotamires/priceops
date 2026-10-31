@@ -4,8 +4,11 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_arquivos_pdf")
-public class ArquivoPdf {
+@Table(
+        name = "tb_importacoes_pdf",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"fornecedor_id", "hash_sha256"})
+)
+public class ImportacaoPdf {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -14,7 +17,7 @@ public class ArquivoPdf {
     @Column(nullable = false, length = 255)
     private String nomeOriginal;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 120)
     private String nomeArmazenado;
 
     @Column(nullable = false, length = 500)
@@ -26,11 +29,11 @@ public class ArquivoPdf {
     @Column(nullable = false)
     private Long tamanhoBytes;
 
-    @Column(name = "hash_sha256", nullable = false, unique = true, length = 64)
+    @Column(name = "hash_sha256", nullable = false, length = 64)
     private String hashSha256;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "fornecedor_id")
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "fornecedor_id", nullable = false)
     private Fornecedor fornecedor;
 
     @Column(nullable = false, length = 100)
@@ -40,16 +43,16 @@ public class ArquivoPdf {
     private String observacao;
 
     @Column(nullable = false, length = 30)
-    private String statusProcessamento; // "RECEBIDO", "EM_PROCESSAMENTO", "PROCESSADO", "ERRO"
+    private String statusImportacao; // RECEBIDO, EM_PROCESSAMENTO, PROCESSADO, ERRO
 
-    @Column(name = "enviado_em", nullable = false, updatable = false)
-    private LocalDateTime enviadoEm;
+    @Column(name = "importado_em", nullable = false, updatable = false)
+    private LocalDateTime importadoEm;
 
-    public ArquivoPdf() {
+    public ImportacaoPdf() {
         this.contentType = "application/pdf";
         this.usuarioResponsavel = "SISTEMA";
-        this.statusProcessamento = "RECEBIDO";
-        this.enviadoEm = LocalDateTime.now();
+        this.statusImportacao = "RECEBIDO";
+        this.importadoEm = LocalDateTime.now();
     }
 
     // Getters e Setters
@@ -83,9 +86,9 @@ public class ArquivoPdf {
     public String getObservacao() { return observacao; }
     public void setObservacao(String observacao) { this.observacao = observacao; }
 
-    public String getStatusProcessamento() { return statusProcessamento; }
-    public void setStatusProcessamento(String statusProcessamento) { this.statusProcessamento = statusProcessamento; }
+    public String getStatusImportacao() { return statusImportacao; }
+    public void setStatusImportacao(String statusImportacao) { this.statusImportacao = statusImportacao; }
 
-    public LocalDateTime getEnviadoEm() { return enviadoEm; }
-    public void setEnviadoEm(LocalDateTime enviadoEm) { this.enviadoEm = enviadoEm; }
+    public LocalDateTime getImportadoEm() { return importadoEm; }
+    public void setImportadoEm(LocalDateTime importadoEm) { this.importadoEm = importadoEm; }
 }

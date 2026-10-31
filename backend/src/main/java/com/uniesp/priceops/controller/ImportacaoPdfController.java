@@ -1,9 +1,9 @@
 package com.uniesp.priceops.controller;
 
-import com.uniesp.priceops.exception.DuplicidadeArquivoException;
-import com.uniesp.priceops.model.ArquivoPdf;
+import com.uniesp.priceops.exception.DuplicidadeImportacaoException;
+import com.uniesp.priceops.model.ImportacaoPdf;
 import com.uniesp.priceops.model.LogAuditoriaPdf;
-import com.uniesp.priceops.service.ArquivoPdfService;
+import com.uniesp.priceops.service.ImportacaoPdfService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -16,15 +16,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/arquivos-pdf")
+@RequestMapping({"/api/importacoes-pdf", "/api/arquivos-pdf"})
 @CrossOrigin(origins = "*") // Permite integração futura com o frontend React
-public class ArquivoPdfController {
+public class ImportacaoPdfController {
 
     @Autowired
-    private ArquivoPdfService arquivoPdfService;
+    private ImportacaoPdfService importacaoPdfService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> realizarUpload(
@@ -33,17 +32,18 @@ public class ArquivoPdfController {
             @RequestParam(value = "usuarioResponsavel", required = false) String usuarioResponsavel,
             @RequestParam(value = "observacao", required = false) String observacao) {
         try {
-            ArquivoPdf salvo = arquivoPdfService.realizarUpload(arquivo, fornecedorId, usuarioResponsavel, observacao);
-            return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
-        } catch (DuplicidadeArquivoException e) {
-            ArquivoPdf existente = e.getArquivoExistente();
+            ImportacaoPdf salva = importacaoPdfService.realizarUpload(arquivo, fornecedorId, usuarioResponsavel, observacao);
+            return ResponseEntity.status(HttpStatus.CREATED).body(salva);
+        } catch (DuplicidadeImportacaoException e) {
+            ImportacaoPdf existente = e.getImportacaoExistente();
             Map<String, Object> corpoConflito = new LinkedHashMap<>();
-            corpoConflito.put("erro", "DUPLICIDADE_ARQUIVO_PDF");
+            corpoConflito.put("erro", "DUPLICIDADE_IMPORTACAO_PDF");
             corpoConflito.put("mensagem", e.getMessage());
             corpoConflito.put("hashSha256", existente.getHashSha256());
-            corpoConflito.put("arquivoExistenteId", existente.getId());
-            corpoConflito.put("arquivoExistenteNome", existente.getNomeOriginal());
-            corpoConflito.put("enviadoEm", existente.getEnviadoEm());
+            corpoConflito.put("fornecedorId", existente.getFornecedor().getId());
+            corpoConflito.put("importacaoExistenteId", existente.getId());
+            corpoConflito.put("importacaoExistenteNome", existente.getNomeOriginal());
+            corpoConflito.put("importadoEm", existente.getImportadoEm());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(corpoConflito);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -51,41 +51,25 @@ public class ArquivoPdfController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ArquivoPdf>> listar(
+    public ResponseEntity<List<ImportacaoPdf>> listar(
             @RequestParam(required = false) Long fornecedorId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String nome) {
-        return ResponseEntity.ok(arquivoPdfService.listarArquivos(fornecedorId, status, nome));
+        return ResponseEntity.ok(importacaoPdfService.listarImportacoes(fornecedorId, status, nome));
     }
 
     @GetMapping("/auditoria")
     public ResponseEntity<List<LogAuditoriaPdf>> listarAuditoria(
-            @RequestParam(required = false) String evento,
-            @RequestParam(required = false) String hashSha256) {
-        return ResponseEntity.ok(arquivoPdfService.listarAuditoria(evento, hashSha256));
-    }
-
-    @GetMapping("/verificar-hash/{hashSha256}")
-    public ResponseEntity<?> verificarHash(@PathVariable String hashSha256) {
-        try {
-            Optional<ArquivoPdf> existente = arquivoPdfService.verificarDuplicidadePorHash(hashSha256);
-            Map<String, Object> resposta = new LinkedHashMap<>();
-            resposta.put("duplicado", existente.isPresent());
-            existente.ifPresent(arq -> {
-                resposta.put("arquivoExistenteId", arq.getId());
-                resposta.put("arquivoExistenteNome", arq.getNomeOriginal());
-                resposta.put("enviadoEm", arq.getEnviadoEm());
-            });
-            return ResponseEntity.ok(resposta);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String hashSha256,
+            @RequestParam(required = false) Long fornecedorId) {
+        return ResponseEntity.ok(importacaoPdfService.listarAuditoria(status, hashSha256, fornecedorId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(arquivoPdfService.buscarPorId(id));
+            return ResponseEntity.ok(importacaoPdfService.buscarPorId(id));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
@@ -96,8 +80,8 @@ public class ArquivoPdfController {
             @PathVariable Long id,
             @RequestParam(required = false) String usuarioResponsavel) {
         try {
-            ArquivoPdf metadados = arquivoPdfService.buscarPorId(id);
-            byte[] conteudo = arquivoPdfService.carregarConteudoArquivo(id, usuarioResponsavel);
+            ImportacaoPdf metadados = importacaoPdfService.buscarPorId(id);
+            byte[] conteudo = importacaoPdfService.carregarConteudoArquivo(id, usuarioResponsavel);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
@@ -115,8 +99,8 @@ public class ArquivoPdfController {
             @RequestParam String status,
             @RequestParam(required = false) String usuarioResponsavel) {
         try {
-            ArquivoPdf atualizado = arquivoPdfService.atualizarStatusProcessamento(id, status, usuarioResponsavel);
-            return ResponseEntity.ok(atualizado);
+            ImportacaoPdf atualizada = importacaoPdfService.atualizarStatusImportacao(id, status, usuarioResponsavel);
+            return ResponseEntity.ok(atualizada);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (NoSuchElementException e) {
@@ -129,7 +113,7 @@ public class ArquivoPdfController {
             @PathVariable Long id,
             @RequestParam(required = false) String usuarioResponsavel) {
         try {
-            arquivoPdfService.deletar(id, usuarioResponsavel);
+            importacaoPdfService.deletar(id, usuarioResponsavel);
             return ResponseEntity.noContent().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
