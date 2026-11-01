@@ -1,15 +1,21 @@
 package com.uniesp.priceops.service;
 
+import com.uniesp.priceops.dto.ItemImportadoDto;
+import com.uniesp.priceops.dto.PreviaImportacaoResponseDto;
+import com.uniesp.priceops.dto.ResolucaoPendenciaRequestDto;
 import com.uniesp.priceops.exception.DuplicidadeImportacaoException;
 import com.uniesp.priceops.model.Fornecedor;
 import com.uniesp.priceops.model.ImportacaoPdf;
+import com.uniesp.priceops.model.ItemImportadoPdf;
 import com.uniesp.priceops.model.LogAuditoriaPdf;
 import com.uniesp.priceops.repository.FornecedorRepository;
 import com.uniesp.priceops.repository.ImportacaoPdfRepository;
+import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
 import com.uniesp.priceops.repository.LogAuditoriaPdfRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -18,11 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class ImportacaoPdfService {
@@ -39,6 +41,15 @@ public class ImportacaoPdfService {
 
     @Autowired
     private FornecedorRepository fornecedorRepository;
+
+    @Autowired
+    private ItemImportadoPdfRepository itemImportadoPdfRepository;
+
+    @Autowired
+    private PdfExtractorService pdfExtractorService;
+
+    @Autowired
+    private ReconciliacaoItemService reconciliacaoItemService;
 
     @Value("${priceops.upload.dir:uploads/pdfs}")
     private String diretorioUpload;
@@ -170,7 +181,7 @@ public class ImportacaoPdfService {
 
     public ImportacaoPdf buscarPorId(Long id) {
         return importacaoPdfRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Importação PDF não encontrada com id: " + id));
+                .orElseThrow(() -> new NoSuchElementException("Importação PDF não encontrada com ID: " + id));
     }
 
     public byte[] carregarConteudoArquivo(Long id, String usuarioResponsavel) {
@@ -178,7 +189,7 @@ public class ImportacaoPdfService {
         Path caminho = Paths.get(importacao.getCaminhoArmazenamento());
 
         if (!Files.exists(caminho)) {
-            throw new NoSuchElementException("O arquivo físico não foi encontrado no armazenamento para o id: " + id);
+            throw new NoSuchElementException("Arquivo físico não encontrado no sistema de arquivos para a importação ID: " + id);
         }
 
         try {
@@ -186,7 +197,7 @@ public class ImportacaoPdfService {
             registrarAuditoria("DOWNLOAD_ARQUIVO", importacao.getNomeOriginal(), importacao.getHashSha256(),
                     importacao.getTamanhoBytes(), importacao.getId(), importacao.getFornecedor().getId(),
                     normalizarUsuario(usuarioResponsavel),
-                    "Download/consulta da tabela PDF realizado.");
+                    "Download realizado do arquivo original arquivado no servidor.");
             return bytes;
         } catch (IOException e) {
             throw new RuntimeException("Erro ao ler o arquivo PDF armazenado.", e);
@@ -246,6 +257,115 @@ public class ImportacaoPdfService {
         }
         return logAuditoriaPdfRepository.findAllByOrderByDataHoraDesc();
     }
+
+    // ==========================================
+    // MÉTODOS DE EXTRAÇÃO E PENDÊNCIAS (US-04)
+    // ==========================================
+
+    @Transactional
+    public PreviaImportacaoResponseDto processarExtracao(Long id, String usuarioResponsavel) {
+        ImportacaoPdf importacao = buscarPorId(id);
+        String usuario = normalizarUsuario(usuarioResponsavel);
+
+        byte[] pdfBytes = carregarConteudoArquivo(id, usuario);
+
+        importacao.setStatusImportacao("EM_PROCESSAMENTO");
+        importacaoPdfRepository.save(importacao);
+
+        // Remove itens prévios se for reprocessamento para manter idempotência
+        itemImportadoPdfRepository.deleteByImportacaoPdfId(id);
+
+        List<ItemImportadoPdf> itensExtraidos = pdfExtractorService.extrairItens(importacao, pdfBytes);
+
+        for (ItemImportadoPdf item : itensExtraidos) {
+            reconciliacaoItemService.reconciliarItem(item);
+            itemImportadoPdfRepository.save(item);
+        }
+
+        importacao.setStatusImportacao("PROCESSADO");
+        importacaoPdfRepository.save(importacao);
+
+        long vinculados = itemImportadoPdfRepository.countByImportacaoPdfIdAndStatusItem(id, "VINCULADO");
+        long pendentes = itemImportadoPdfRepository.countByImportacaoPdfIdAndStatusItem(id, "PENDENTE_VINCULO");
+
+        registrarAuditoria("EXTRACAO_CONCLUIDA", importacao.getNomeOriginal(), importacao.getHashSha256(),
+                importacao.getTamanhoBytes(), importacao.getId(), importacao.getFornecedor().getId(),
+                usuario,
+                String.format("Extração concluída com sucesso: %d itens detectados (%d vinculados, %d pendentes de validação).",
+                        itensExtraidos.size(), vinculados, pendentes));
+
+        return obterPrevia(id);
+    }
+
+    public PreviaImportacaoResponseDto obterPrevia(Long id) {
+        ImportacaoPdf importacao = buscarPorId(id);
+        List<ItemImportadoPdf> itens = itemImportadoPdfRepository.findByImportacaoPdfIdOrderByLinhaTabelaAsc(id);
+
+        PreviaImportacaoResponseDto dto = new PreviaImportacaoResponseDto();
+        dto.setImportacaoId(importacao.getId());
+        dto.setNomeArquivoOriginal(importacao.getNomeOriginal());
+        dto.setFornecedorId(importacao.getFornecedor().getId());
+        dto.setFornecedorNome(importacao.getFornecedor().getNomeFantasia());
+        dto.setStatusImportacao(importacao.getStatusImportacao());
+        dto.setDataImportacao(importacao.getImportadoEm());
+
+        int vinculados = 0;
+        int pendentes = 0;
+        int ignorados = 0;
+        List<ItemImportadoDto> dtosItens = new ArrayList<>();
+
+        for (ItemImportadoPdf item : itens) {
+            dtosItens.add(ItemImportadoDto.fromEntity(item));
+            if ("VINCULADO".equalsIgnoreCase(item.getStatusItem())) {
+                vinculados++;
+            } else if ("PENDENTE_VINCULO".equalsIgnoreCase(item.getStatusItem())) {
+                pendentes++;
+            } else if ("IGNORADO".equalsIgnoreCase(item.getStatusItem())) {
+                ignorados++;
+            }
+        }
+
+        dto.setTotalItens(itens.size());
+        dto.setTotalVinculados(vinculados);
+        dto.setTotalPendentes(pendentes);
+        dto.setTotalIgnorados(ignorados);
+        dto.setItens(dtosItens);
+
+        return dto;
+    }
+
+    public List<ItemImportadoDto> listarItens(Long importacaoId, String statusItem) {
+        buscarPorId(importacaoId);
+        List<ItemImportadoPdf> itens;
+        if (statusItem != null && !statusItem.trim().isEmpty()) {
+            itens = itemImportadoPdfRepository.findByImportacaoPdfIdAndStatusItemOrderByLinhaTabelaAsc(importacaoId, statusItem.trim().toUpperCase());
+        } else {
+            itens = itemImportadoPdfRepository.findByImportacaoPdfIdOrderByLinhaTabelaAsc(importacaoId);
+        }
+        return itens.stream().map(ItemImportadoDto::fromEntity).toList();
+    }
+
+    @Transactional
+    public ItemImportadoDto resolverPendenciaItem(Long importacaoId, Long itemId, ResolucaoPendenciaRequestDto dto, String usuarioResponsavel) {
+        buscarPorId(importacaoId);
+        ItemImportadoPdf item = reconciliacaoItemService.resolverPendencia(itemId, dto);
+        if (!item.getImportacaoPdf().getId().equals(importacaoId)) {
+            throw new IllegalArgumentException("O item informado (ID " + itemId + ") não pertence à importação ID " + importacaoId);
+        }
+
+        String usuario = normalizarUsuario(usuarioResponsavel);
+        registrarAuditoria("PENDENCIA_RESOLVIDA", item.getImportacaoPdf().getNomeOriginal(),
+                item.getImportacaoPdf().getHashSha256(), item.getImportacaoPdf().getTamanhoBytes(),
+                importacaoId, item.getImportacaoPdf().getFornecedor().getId(), usuario,
+                String.format("Pendência do item linha %d (%s) resolvida para status '%s'.",
+                        item.getLinhaTabela(), item.getDescricao(), item.getStatusItem()));
+
+        return ItemImportadoDto.fromEntity(item);
+    }
+
+    // ==========================================
+    // MÉTODOS UTILITÁRIOS INTERNOS
+    // ==========================================
 
     private void registrarAuditoria(
             String statusAuditoria,

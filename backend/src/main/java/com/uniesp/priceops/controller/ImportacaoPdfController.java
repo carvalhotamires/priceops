@@ -1,5 +1,8 @@
 package com.uniesp.priceops.controller;
 
+import com.uniesp.priceops.dto.ItemImportadoDto;
+import com.uniesp.priceops.dto.PreviaImportacaoResponseDto;
+import com.uniesp.priceops.dto.ResolucaoPendenciaRequestDto;
 import com.uniesp.priceops.exception.DuplicidadeImportacaoException;
 import com.uniesp.priceops.model.ImportacaoPdf;
 import com.uniesp.priceops.model.LogAuditoriaPdf;
@@ -19,7 +22,7 @@ import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping({"/api/importacoes-pdf", "/api/arquivos-pdf"})
-@CrossOrigin(origins = "*") // Permite integração futura com o frontend React
+@CrossOrigin(origins = "*") // Permite integração com o frontend React
 public class ImportacaoPdfController {
 
     @Autowired
@@ -117,6 +120,62 @@ public class ImportacaoPdfController {
             return ResponseEntity.noContent().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // ENDPOINTS US-04: EXTRAÇÃO, PRÉVIA E PENDÊNCIAS
+    // ==========================================
+
+    @PostMapping("/{id}/extrair")
+    public ResponseEntity<?> processarExtracao(
+            @PathVariable Long id,
+            @RequestParam(required = false) String usuarioResponsavel) {
+        try {
+            PreviaImportacaoResponseDto previa = importacaoPdfService.processarExtracao(id, usuarioResponsavel);
+            return ResponseEntity.ok(previa);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/pre-visualizacao")
+    public ResponseEntity<?> obterPrevia(@PathVariable Long id) {
+        try {
+            PreviaImportacaoResponseDto previa = importacaoPdfService.obterPrevia(id);
+            return ResponseEntity.ok(previa);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/itens")
+    public ResponseEntity<?> listarItens(
+            @PathVariable Long id,
+            @RequestParam(required = false) String status) {
+        try {
+            List<ItemImportadoDto> itens = importacaoPdfService.listarItens(id, status);
+            return ResponseEntity.ok(itens);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/itens/{itemId}/resolver-pendencia")
+    public ResponseEntity<?> resolverPendencia(
+            @PathVariable Long id,
+            @PathVariable Long itemId,
+            @RequestBody ResolucaoPendenciaRequestDto request,
+            @RequestParam(required = false) String usuarioResponsavel) {
+        try {
+            ItemImportadoDto resolvido = importacaoPdfService.resolverPendenciaItem(id, itemId, request, usuarioResponsavel);
+            return ResponseEntity.ok(resolvido);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }
