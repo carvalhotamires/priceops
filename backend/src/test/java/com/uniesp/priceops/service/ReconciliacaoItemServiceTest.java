@@ -1,11 +1,10 @@
 package com.uniesp.priceops.service;
 
 import com.uniesp.priceops.dto.ResolucaoPendenciaRequestDto;
-import com.uniesp.priceops.model.ImportacaoPdf;
-import com.uniesp.priceops.model.ItemImportadoPdf;
-import com.uniesp.priceops.model.Produto;
+import com.uniesp.priceops.model.*;
 import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
 import com.uniesp.priceops.repository.ProdutoRepository;
+import com.uniesp.priceops.repository.VinculoItemFornecedorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,17 +32,29 @@ class ReconciliacaoItemServiceTest {
     @Mock
     private ItemImportadoPdfRepository itemImportadoPdfRepository;
 
+    @Mock
+    private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
+
+    @Mock
+    private VinculoItemFornecedorService vinculoItemFornecedorService;
+
     @InjectMocks
     private ReconciliacaoItemService reconciliacaoItemService;
 
     private Produto produtoInf01;
     private Produto produtoInf02;
     private ImportacaoPdf importacao;
+    private Fornecedor fornecedor;
 
     @BeforeEach
     void setUp() {
+        fornecedor = new Fornecedor();
+        fornecedor.setId(5L);
+        fornecedor.setNomeFantasia("Distribuidor Alpha");
+
         importacao = new ImportacaoPdf();
         importacao.setId(1L);
+        importacao.setFornecedor(fornecedor);
 
         produtoInf01 = new Produto();
         produtoInf01.setId(101L);
@@ -69,8 +80,32 @@ class ReconciliacaoItemServiceTest {
     }
 
     @Test
+    @DisplayName("US-05 - Deve vincular item automaticamente via De-Para comercial prévio do fornecedor")
+    void deveVincularPorDeParaComercialPreexistente() {
+        VinculoItemFornecedor vinculo = new VinculoItemFornecedor(
+                fornecedor, produtoInf01, "SKU-ALPHA-480", "Desc Fornecedor", new BigDecimal("175.00")
+        );
+        vinculo.setAtivo(true);
+
+        when(vinculoItemFornecedorRepository.findByFornecedorIdAndCodigoFornecedorIgnoreCase(5L, "SKU-ALPHA-480"))
+                .thenReturn(Optional.of(vinculo));
+
+        ItemImportadoPdf item = new ItemImportadoPdf(importacao, "SKU-ALPHA-480", "SSD Genérico",
+                new BigDecimal("175.00"), 10, 1);
+
+        reconciliacaoItemService.reconciliarItem(item);
+
+        assertThat(item.getStatusItem()).isEqualTo("VINCULADO");
+        assertThat(item.getProduto()).isEqualTo(produtoInf01);
+        assertThat(item.getConfiancaMatching()).isEqualTo(100.0);
+        assertThat(item.getMotivoPendencia()).isNull();
+    }
+
+    @Test
     @DisplayName("Deve vincular item automaticamente quando houver match exato por código")
     void deveVincularItemPorCodigoExato() {
+        when(vinculoItemFornecedorRepository.findByFornecedorIdAndCodigoFornecedorIgnoreCase(5L, "INF-01"))
+                .thenReturn(Optional.empty());
         when(produtoRepository.findByCodigoIgnoreCase("INF-01")).thenReturn(Optional.of(produtoInf01));
 
         ItemImportadoPdf item = new ItemImportadoPdf(importacao, "INF-01", "SSD Kingston 480GB",
@@ -87,6 +122,8 @@ class ReconciliacaoItemServiceTest {
     @Test
     @DisplayName("Deve sugerir vínculo ou vincular quando a similaridade de descrição for alta")
     void deveVincularItemPorSimilaridadeDescricao() {
+        when(vinculoItemFornecedorRepository.findByFornecedorIdAndCodigoFornecedorIgnoreCase(5L, "SEM-COD"))
+                .thenReturn(Optional.empty());
         when(produtoRepository.findByCodigoIgnoreCase("SEM-COD")).thenReturn(Optional.empty());
         when(produtoRepository.findAll()).thenReturn(List.of(produtoInf01, produtoInf02));
 
@@ -103,6 +140,8 @@ class ReconciliacaoItemServiceTest {
     @Test
     @DisplayName("Deve marcar como PENDENTE_VINCULO quando o item não for encontrado no catálogo")
     void deveMarcarComoPendenteQuandoNaoEncontrarNoCatalogo() {
+        when(vinculoItemFornecedorRepository.findByFornecedorIdAndCodigoFornecedorIgnoreCase(5L, "DESCONHECIDO"))
+                .thenReturn(Optional.empty());
         when(produtoRepository.findByCodigoIgnoreCase("DESCONHECIDO")).thenReturn(Optional.empty());
         when(produtoRepository.findAll()).thenReturn(List.of(produtoInf01, produtoInf02));
 
@@ -117,7 +156,7 @@ class ReconciliacaoItemServiceTest {
     }
 
     @Test
-    @DisplayName("Deve resolver pendência vinculando manualmente ao produto selecionado pelo operador")
+    @DisplayName("Deve resolver pendência vinculando manualmente ao produto selecionado pelo operador e memorizando De-Para")
     void deveResolverPendenciaVinculandoManualmente() {
         ItemImportadoPdf item = new ItemImportadoPdf(importacao, "GEN-01", "Item sem de-para",
                 new BigDecimal("190.00"), 10, 1);
@@ -133,6 +172,9 @@ class ReconciliacaoItemServiceTest {
         assertThat(resolvido.getStatusItem()).isEqualTo("VINCULADO");
         assertThat(resolvido.getProduto()).isEqualTo(produtoInf01);
         assertThat(resolvido.getMotivoPendencia()).contains("Vinculado manualmente");
+
+        verify(vinculoItemFornecedorService, times(1))
+                .salvarOuAtualizarVinculoAutomatico(eq(fornecedor), eq(produtoInf01), eq("GEN-01"), eq("Item sem de-para"), eq(new BigDecimal("190.00")));
     }
 
     @Test
