@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: priceops-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-priceops_db}
+      POSTGRES_USER: ${POSTGRES_USER:-priceops_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-priceops_pass}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-priceops_user} -d ${POSTGRES_DB:-priceops_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - priceops-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: priceops-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-priceops_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-priceops_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-priceops_pass}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_H2_CONSOLE_ENABLED: "false"
+      PRICEOPS_UPLOAD_DIR: /app/uploads/pdfs
+      SERVER_PORT: 8080
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - backend_uploads:/app/uploads/pdfs
+    networks:
+      - priceops-network
+
+volumes:
+  postgres_data:
+    name: priceops_postgres_data
+  backend_uploads:
+    name: priceops_backend_uploads
+
+networks:
+  priceops-network:
+    name: priceops-network
+    driver: bridge
