@@ -48,6 +48,19 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Apache PDFBox para extração e processamento de documentos PDF (US04) -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.3</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-logging</groupId>
+					<artifactId>commons-logging</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<!-- Starter oficial de Testes (JUnit 5, Mockito, AssertJ, Spring Test) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

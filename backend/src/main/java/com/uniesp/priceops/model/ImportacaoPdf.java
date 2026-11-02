@@ -1,7 +1,10 @@
 package com.uniesp.priceops.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(
@@ -48,6 +51,10 @@ public class ImportacaoPdf {
     @Column(name = "importado_em", nullable = false, updatable = false)
     private LocalDateTime importadoEm;
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "importacaoPdf", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ItemImportadoPdf> itens = new ArrayList<>();
+
     public ImportacaoPdf() {
         this.contentType = "application/pdf";
         this.usuarioResponsavel = "SISTEMA";
@@ -91,4 +98,7 @@ public class ImportacaoPdf {
 
     public LocalDateTime getImportadoEm() { return importadoEm; }
     public void setImportadoEm(LocalDateTime importadoEm) { this.importadoEm = importadoEm; }
+
+    public List<ItemImportadoPdf> getItens() { return itens; }
+    public void setItens(List<ItemImportadoPdf> itens) { this.itens = itens; }
 }
