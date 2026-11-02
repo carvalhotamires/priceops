@@ -51,6 +51,9 @@ public class ImportacaoPdfService {
     @Autowired
     private ReconciliacaoItemService reconciliacaoItemService;
 
+    @Autowired(required = false)
+    private HistoricoPrecoService historicoPrecoService;
+
     @Value("${priceops.upload.dir:uploads/pdfs}")
     private String diretorioUpload;
 
@@ -279,7 +282,18 @@ public class ImportacaoPdfService {
 
         for (ItemImportadoPdf item : itensExtraidos) {
             reconciliacaoItemService.reconciliarItem(item);
-            itemImportadoPdfRepository.save(item);
+            ItemImportadoPdf itemSalvo = itemImportadoPdfRepository.save(item);
+            if (historicoPrecoService != null
+                    && "VINCULADO".equalsIgnoreCase(itemSalvo.getStatusItem())
+                    && itemSalvo.getProduto() != null) {
+                historicoPrecoService.registrarPreco(
+                        itemSalvo.getProduto().getId(),
+                        importacao.getFornecedor().getId(),
+                        itemSalvo.getPrecoUnitario(),
+                        "IMPORTACAO_PDF",
+                        importacao.getId()
+                );
+            }
         }
 
         importacao.setStatusImportacao("PROCESSADO");
@@ -354,6 +368,18 @@ public class ImportacaoPdfService {
         }
 
         String usuario = normalizarUsuario(usuarioResponsavel);
+        if (historicoPrecoService != null
+                && "VINCULADO".equalsIgnoreCase(item.getStatusItem())
+                && item.getProduto() != null) {
+            historicoPrecoService.registrarPreco(
+                    item.getProduto().getId(),
+                    item.getImportacaoPdf().getFornecedor().getId(),
+                    item.getPrecoUnitario(),
+                    "IMPORTACAO_PDF",
+                    importacaoId
+            );
+        }
+
         registrarAuditoria("PENDENCIA_RESOLVIDA", item.getImportacaoPdf().getNomeOriginal(),
                 item.getImportacaoPdf().getHashSha256(), item.getImportacaoPdf().getTamanhoBytes(),
                 importacaoId, item.getImportacaoPdf().getFornecedor().getId(), usuario,

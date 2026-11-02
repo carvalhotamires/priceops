@@ -37,6 +37,9 @@ class ImportacaoPdfIntegrationTests {
     private MockMvc mockMvc;
 
     @Autowired(required = false)
+    private HistoricoPrecoRepository historicoPrecoRepository;
+
+    @Autowired(required = false)
     private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
 
     @Autowired
@@ -65,6 +68,7 @@ class ImportacaoPdfIntegrationTests {
     }
 
     private void limparDadosEPasta() throws IOException {
+        if (historicoPrecoRepository != null) historicoPrecoRepository.deleteAll();
         if (vinculoItemFornecedorRepository != null) vinculoItemFornecedorRepository.deleteAll();
         itemImportadoPdfRepository.deleteAll();
         importacaoPdfRepository.deleteAll();

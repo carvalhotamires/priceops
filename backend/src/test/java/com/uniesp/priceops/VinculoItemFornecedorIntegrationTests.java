@@ -47,6 +47,9 @@ class VinculoItemFornecedorIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired(required = false)
+    private HistoricoPrecoRepository historicoPrecoRepository;
+
     @Autowired
     private VinculoItemFornecedorRepository vinculoRepository;
 
@@ -106,6 +109,7 @@ class VinculoItemFornecedorIntegrationTests {
     }
 
     private void limparDados() throws IOException {
+        if (historicoPrecoRepository != null) historicoPrecoRepository.deleteAll();
         vinculoRepository.deleteAll();
         itemImportadoPdfRepository.deleteAll();
         importacaoPdfRepository.deleteAll();
