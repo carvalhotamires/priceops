@@ -3,8 +3,10 @@ package com.uniesp.priceops.service;
 import com.uniesp.priceops.dto.ResolucaoPendenciaRequestDto;
 import com.uniesp.priceops.model.ItemImportadoPdf;
 import com.uniesp.priceops.model.Produto;
+import com.uniesp.priceops.model.VinculoItemFornecedor;
 import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
 import com.uniesp.priceops.repository.ProdutoRepository;
+import com.uniesp.priceops.repository.VinculoItemFornecedorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,12 @@ public class ReconciliacaoItemService {
     @Autowired
     private ItemImportadoPdfRepository itemImportadoPdfRepository;
 
+    @Autowired(required = false)
+    private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
+
+    @Autowired(required = false)
+    private VinculoItemFornecedorService vinculoItemFornecedorService;
+
     /**
      * Reconcilia um item extraído com o catálogo de produtos interno.
      */
@@ -32,7 +40,27 @@ public class ReconciliacaoItemService {
             return;
         }
 
-        // 1. Tentar correspondência exata por código de fabricante / SKU
+        // 0. Tentar correspondência pelo De-Para Comercial prévio do fornecedor (US-05)
+        if (vinculoItemFornecedorRepository != null
+                && item.getImportacaoPdf() != null
+                && item.getImportacaoPdf().getFornecedor() != null
+                && item.getCodigoFornecedor() != null
+                && !item.getCodigoFornecedor().isBlank()) {
+
+            Long fornecedorId = item.getImportacaoPdf().getFornecedor().getId();
+            Optional<VinculoItemFornecedor> vinculoOpt = vinculoItemFornecedorRepository
+                    .findByFornecedorIdAndCodigoFornecedorIgnoreCase(fornecedorId, item.getCodigoFornecedor().trim());
+
+            if (vinculoOpt.isPresent() && Boolean.TRUE.equals(vinculoOpt.get().getAtivo())) {
+                item.setProduto(vinculoOpt.get().getProduto());
+                item.setStatusItem("VINCULADO");
+                item.setConfiancaMatching(100.0);
+                item.setMotivoPendencia(null);
+                return;
+            }
+        }
+
+        // 1. Tentar correspondência exata por código de fabricante / SKU interno
         if (item.getCodigoFornecedor() != null && !item.getCodigoFornecedor().isBlank()) {
             Optional<Produto> produtoPorCodigo = produtoRepository.findByCodigoIgnoreCase(item.getCodigoFornecedor().trim());
             if (produtoPorCodigo.isPresent()) {
@@ -101,6 +129,22 @@ public class ReconciliacaoItemService {
             item.setMotivoPendencia(dto.getObservacao() != null && !dto.getObservacao().isBlank()
                     ? dto.getObservacao()
                     : "Vinculado manualmente pelo operador");
+
+            // US-05: Memoriza o vínculo comercial automaticamente para que futuras tabelas reconheçam o SKU
+            if (vinculoItemFornecedorService != null
+                    && item.getImportacaoPdf() != null
+                    && item.getImportacaoPdf().getFornecedor() != null
+                    && item.getCodigoFornecedor() != null
+                    && !item.getCodigoFornecedor().isBlank()) {
+                vinculoItemFornecedorService.salvarOuAtualizarVinculoAutomatico(
+                        item.getImportacaoPdf().getFornecedor(),
+                        produto,
+                        item.getCodigoFornecedor(),
+                        item.getDescricao(),
+                        item.getPrecoUnitario()
+                );
+            }
+
         } else if ("IGNORAR".equals(acao)) {
             item.setProduto(null);
             item.setStatusItem("IGNORADO");
@@ -137,7 +181,6 @@ public class ReconciliacaoItemService {
 
         double jaccard = (double) intersecao.size() / uniao.size();
 
-        // Se uma string contém quase todas as palavras chave da outra, bonifica
         double inclusao = Math.max((double) intersecao.size() / tokens1.size(),
                                    (double) intersecao.size() / tokens2.size());
 

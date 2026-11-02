@@ -5,9 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uniesp.priceops.dto.AvaliacaoPrecoRequest;
 import com.uniesp.priceops.model.Fornecedor;
 import com.uniesp.priceops.model.Produto;
-import com.uniesp.priceops.repository.AlertaPrecoRepository;
-import com.uniesp.priceops.repository.FornecedorRepository;
-import com.uniesp.priceops.repository.ProdutoRepository;
+import com.uniesp.priceops.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +33,15 @@ class AlertaPrecoIntegrationTests {
     @Autowired
     private AlertaPrecoRepository alertaPrecoRepository;
 
+    @Autowired(required = false)
+    private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
+
+    @Autowired(required = false)
+    private ItemImportadoPdfRepository itemImportadoPdfRepository;
+
+    @Autowired(required = false)
+    private ImportacaoPdfRepository importacaoPdfRepository;
+
     @Autowired
     private ProdutoRepository produtoRepository;
 
@@ -55,6 +62,9 @@ class AlertaPrecoIntegrationTests {
     }
 
     private void limparDados() {
+        if (vinculoItemFornecedorRepository != null) vinculoItemFornecedorRepository.deleteAll();
+        if (itemImportadoPdfRepository != null) itemImportadoPdfRepository.deleteAll();
+        if (importacaoPdfRepository != null) importacaoPdfRepository.deleteAll();
         alertaPrecoRepository.deleteAll();
         produtoRepository.deleteAll();
         fornecedorRepository.deleteAll();

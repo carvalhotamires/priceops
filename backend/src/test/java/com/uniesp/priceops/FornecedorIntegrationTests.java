@@ -3,6 +3,9 @@ package com.uniesp.priceops;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uniesp.priceops.model.Fornecedor;
 import com.uniesp.priceops.repository.FornecedorRepository;
+import com.uniesp.priceops.repository.ImportacaoPdfRepository;
+import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
+import com.uniesp.priceops.repository.VinculoItemFornecedorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +28,23 @@ class FornecedorIntegrationTests {
     @Autowired
     private FornecedorRepository fornecedorRepository;
 
+    @Autowired(required = false)
+    private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
+
+    @Autowired(required = false)
+    private ItemImportadoPdfRepository itemImportadoPdfRepository;
+
+    @Autowired(required = false)
+    private ImportacaoPdfRepository importacaoPdfRepository;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void limparBanco() {
+        if (vinculoItemFornecedorRepository != null) vinculoItemFornecedorRepository.deleteAll();
+        if (itemImportadoPdfRepository != null) itemImportadoPdfRepository.deleteAll();
+        if (importacaoPdfRepository != null) importacaoPdfRepository.deleteAll();
         fornecedorRepository.deleteAll();
     }
 

@@ -3,10 +3,7 @@ package com.uniesp.priceops;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uniesp.priceops.model.Fornecedor;
-import com.uniesp.priceops.repository.FornecedorRepository;
-import com.uniesp.priceops.repository.ImportacaoPdfRepository;
-import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
-import com.uniesp.priceops.repository.LogAuditoriaPdfRepository;
+import com.uniesp.priceops.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +36,9 @@ class ImportacaoPdfIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired(required = false)
+    private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
+
     @Autowired
     private ItemImportadoPdfRepository itemImportadoPdfRepository;
 
@@ -65,6 +65,7 @@ class ImportacaoPdfIntegrationTests {
     }
 
     private void limparDadosEPasta() throws IOException {
+        if (vinculoItemFornecedorRepository != null) vinculoItemFornecedorRepository.deleteAll();
         itemImportadoPdfRepository.deleteAll();
         importacaoPdfRepository.deleteAll();
         logAuditoriaPdfRepository.deleteAll();
