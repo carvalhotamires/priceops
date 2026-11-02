@@ -1,0 +1,52 @@
+name: PriceOps CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-test-and-build:
+    name: Build & Testes Automatizados (Spring Boot)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Instalar Fontconfig e Fontes TrueType (Headless PDFBox)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core
+
+      - name: Conceder Permissão de Execução ao Maven Wrapper
+        run: chmod +x backend/mvnw
+
+      - name: Compilar e Executar Suíte Completa de Testes
+        run: |
+          cd backend
+          ./mvnw clean test -B
+
+      - name: Upload de Relatórios de Testes em Caso de Falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-falha-testes
+          path: backend/target/surefire-reports/
+          retention-days: 7
