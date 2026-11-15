@@ -46,6 +46,19 @@ services:
     networks:
       - priceops-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: priceops-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - priceops-network
+
 volumes:
   postgres_data:
     name: priceops_postgres_data

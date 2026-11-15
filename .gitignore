@@ -4,6 +4,7 @@ backend/uploads/
 uploads/
 frontend/node_modules/
 frontend/build/
+frontend/dist/
 
 # Variáveis de ambiente e segredos
 .env
