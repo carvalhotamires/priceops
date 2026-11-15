@@ -34,6 +34,9 @@ class AlertaPrecoIntegrationTests {
     private AlertaPrecoRepository alertaPrecoRepository;
 
     @Autowired(required = false)
+    private HistoricoPrecoRepository historicoPrecoRepository;
+
+    @Autowired(required = false)
     private VinculoItemFornecedorRepository vinculoItemFornecedorRepository;
 
     @Autowired(required = false)
@@ -62,6 +65,7 @@ class AlertaPrecoIntegrationTests {
     }
 
     private void limparDados() {
+        if (historicoPrecoRepository != null) historicoPrecoRepository.deleteAll();
         if (vinculoItemFornecedorRepository != null) vinculoItemFornecedorRepository.deleteAll();
         if (itemImportadoPdfRepository != null) itemImportadoPdfRepository.deleteAll();
         if (importacaoPdfRepository != null) importacaoPdfRepository.deleteAll();

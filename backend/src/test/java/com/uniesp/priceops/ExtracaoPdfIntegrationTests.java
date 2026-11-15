@@ -6,6 +6,7 @@ import com.uniesp.priceops.dto.ResolucaoPendenciaRequestDto;
 import com.uniesp.priceops.model.Fornecedor;
 import com.uniesp.priceops.model.Produto;
 import com.uniesp.priceops.repository.FornecedorRepository;
+import com.uniesp.priceops.repository.HistoricoPrecoRepository;
 import com.uniesp.priceops.repository.ImportacaoPdfRepository;
 import com.uniesp.priceops.repository.ItemImportadoPdfRepository;
 import com.uniesp.priceops.repository.LogAuditoriaPdfRepository;
@@ -49,6 +50,9 @@ class ExtracaoPdfIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired(required = false)
+    private HistoricoPrecoRepository historicoPrecoRepository;
 
     @Autowired
     private ImportacaoPdfRepository importacaoPdfRepository;
@@ -119,6 +123,7 @@ class ExtracaoPdfIntegrationTests {
     }
 
     private void limparDados() throws IOException {
+        if (historicoPrecoRepository != null) historicoPrecoRepository.deleteAll();
         itemImportadoPdfRepository.deleteAll();
         importacaoPdfRepository.deleteAll();
         logAuditoriaPdfRepository.deleteAll();
