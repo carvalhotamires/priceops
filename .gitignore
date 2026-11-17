@@ -9,4 +9,5 @@ frontend/dist/
 # Variáveis de ambiente e segredos
 .env
 *.log
+teste_write.txt
 .DS_Store
