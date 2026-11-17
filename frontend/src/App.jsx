@@ -63,6 +63,9 @@ export default function App() {
       if (forns.length > 0 && !fornecedorUploadId) {
         setFornecedorUploadId(forns[0].id.toString());
       }
+      if (imps.length > 0 && !importacaoSelecionada) {
+        selecionarImportacao(imps[0].id);
+      }
     } catch (err) {
       mostrarNotificacao('Erro ao carregar dados do servidor: ' + err.message, 'danger');
     } finally {
@@ -98,7 +101,7 @@ export default function App() {
       const imps = await api.getImportacoes();
       setImportacoes(imps);
       setAbaAtiva('reconciliacao');
-      selecionarImportacao(novaImportacao.id);
+      await selecionarImportacao(novaImportacao.id, true);
     } catch (err) {
       mostrarNotificacao(err.message, 'danger');
     } finally {
@@ -107,19 +110,30 @@ export default function App() {
   };
 
   // Extração e Prévia de Itens (US-04)
-  const selecionarImportacao = async (id) => {
+  const selecionarImportacao = async (id, forcarExtracao = false) => {
+    if (!id) return;
     setLoading(true);
     try {
-      setImportacaoSelecionada(id);
-      // Tenta obter prévia se já extraída, ou aciona extração
+      const numId = Number(id);
+      setImportacaoSelecionada(numId);
       let previa;
-      try {
-        previa = await api.getPreviaImportacao(id);
-      } catch {
-        previa = await api.extrairItensPdf(id);
+      if (forcarExtracao) {
+        previa = await api.extrairItensPdf(numId);
+      } else {
+        previa = await api.getPreviaImportacao(numId);
+        // Se a importação está como RECEBIDO ou não tem itens, dispara a extração
+        if (previa.statusImportacao === 'RECEBIDO' || !previa.itens || previa.itens.length === 0) {
+          previa = await api.extrairItensPdf(numId);
+        }
       }
+      
+      let itens = previa.itens;
+      if (!itens || itens.length === 0) {
+        itens = await api.getItensImportacao(numId).catch(() => []);
+      }
+
       setResumoPrevia(previa);
-      setItensPrevia(previa.itens || []);
+      setItensPrevia(itens || []);
     } catch (err) {
       mostrarNotificacao('Falha ao processar extração do PDF: ' + err.message, 'danger');
     } finally {
@@ -128,18 +142,24 @@ export default function App() {
   };
 
   // Resolução de Pendência (US-04 / US-05)
-  const handleResolverPendencia = async () => {
+  const handleResolverPendencia = async (acao = 'VINCULAR') => {
     if (!itemEmResolucao) return;
+
+    if (acao === 'VINCULAR' && !produtoVinculoId) {
+      mostrarNotificacao('Selecione um produto do catálogo para vincular.', 'warning');
+      return;
+    }
 
     setLoading(true);
     try {
       const payload = {
-        acao: produtoVinculoId ? 'VINCULAR_PRODUTO_EXISTENTE' : 'CRIAR_NOVO_PRODUTO',
-        produtoId: produtoVinculoId ? Number(produtoVinculoId) : null,
+        acao: acao,
+        produtoId: acao === 'VINCULAR' ? Number(produtoVinculoId) : null,
+        observacao: acao === 'VINCULAR' ? 'Vinculado manualmente pelo operador' : 'Ignorado pelo operador',
       };
 
       await api.resolverPendencia(importacaoSelecionada, itemEmResolucao.id, payload);
-      mostrarNotificacao(`Item '${itemEmResolucao.descricao}' reconciliado com sucesso!`);
+      mostrarNotificacao(`Item '${itemEmResolucao.descricao}' atualizado com sucesso!`);
       setItemEmResolucao(null);
       setProdutoVinculoId('');
 
@@ -181,7 +201,12 @@ export default function App() {
           </li>
           <li
             className={`nav-item ${abaAtiva === 'reconciliacao' ? 'active' : ''}`}
-            onClick={() => setAbaAtiva('reconciliacao')}
+            onClick={() => {
+              setAbaAtiva('reconciliacao');
+              if (!importacaoSelecionada && importacoes.length > 0) {
+                selecionarImportacao(importacoes[0].id);
+              }
+            }}
           >
             <AlertTriangle size={18} />
             <span>Reconciliação & PDFs</span>
@@ -383,22 +408,46 @@ export default function App() {
                       </option>
                     ))}
                   </select>
+                  {importacaoSelecionada && (
+                    <button
+                      className="btn btn-outline"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+                      onClick={() => selecionarImportacao(importacaoSelecionada, true)}
+                      title="Forçar extração dos dados do PDF"
+                      disabled={loading}
+                    >
+                      <RefreshCw size={14} className={loading ? 'spin' : ''} />
+                      Extrair Itens
+                    </button>
+                  )}
                 </div>
               </div>
 
               {resumoPrevia && (
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <span className="badge badge-info">Total Itens: {resumoPrevia.totalItensExtraidos}</span>
-                  <span className="badge badge-success">Reconciliados: {resumoPrevia.itensVinculados}</span>
-                  <span className="badge badge-warning">Pendências: {resumoPrevia.itensPendentes}</span>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  <span className="badge badge-info">Total Itens: {resumoPrevia.totalItens ?? resumoPrevia.totalItensExtraidos ?? 0}</span>
+                  <span className="badge badge-success">Reconciliados: {resumoPrevia.totalVinculados ?? resumoPrevia.itensVinculados ?? 0}</span>
+                  <span className="badge badge-warning">Pendências: {resumoPrevia.totalPendentes ?? resumoPrevia.itensPendentes ?? 0}</span>
+                  <span className="badge badge-secondary">Ignorados: {resumoPrevia.totalIgnorados ?? 0}</span>
                 </div>
               )}
 
               {itensPrevia.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                  {importacaoSelecionada
-                    ? 'Nenhum item extraído nesta tabela.'
-                    : 'Selecione uma tabela importada acima para visualizar os itens e resolver pendências.'}
+                  {importacaoSelecionada ? (
+                    <div>
+                      <p style={{ marginBottom: '1rem' }}>Nenhum item extraído nesta tabela até o momento.</p>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => selecionarImportacao(importacaoSelecionada, true)}
+                        disabled={loading}
+                      >
+                        <RefreshCw size={14} /> Executar Extração Agora
+                      </button>
+                    </div>
+                  ) : (
+                    'Selecione uma tabela importada acima para visualizar os itens e resolver pendências.'
+                  )}
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -409,6 +458,7 @@ export default function App() {
                         <th>Cód. Fornecedor</th>
                         <th>Descrição Extraída do PDF</th>
                         <th>Preço Unit.</th>
+                        <th>Qtd.</th>
                         <th>Status Reconciliação</th>
                         <th>Produto Catálogo Vinculado</th>
                         <th>Ações</th>
@@ -417,10 +467,15 @@ export default function App() {
                     <tbody>
                       {itensPrevia.map((item) => (
                         <tr key={item.id}>
-                          <td>{item.numeroLinhaTabela}</td>
+                          <td>{item.linhaTabela ?? item.numeroLinhaTabela}</td>
                           <td><code>{item.codigoFornecedor || 'S/C'}</code></td>
                           <td>{item.descricao}</td>
-                          <td><strong>R$ {Number(item.precoCotado || 0).toFixed(2)}</strong></td>
+                          <td><strong style={{ color: 'var(--primary)' }}>R$ {Number(item.precoUnitario ?? item.precoCotado ?? 0).toFixed(2)}</strong></td>
+                          <td>
+                            <span className="badge badge-info">
+                              {item.quantidadeEstoque != null ? `${item.quantidadeEstoque} un` : 'N/D'}
+                            </span>
+                          </td>
                           <td>
                             {item.statusItem === 'VINCULADO' && (
                               <span className="badge badge-success">
@@ -437,8 +492,8 @@ export default function App() {
                             )}
                           </td>
                           <td>
-                            {item.produtoNome ? (
-                              <span><strong>{item.produtoCodigo}:</strong> {item.produtoNome}</span>
+                            {(item.produtoVinculadoNome || item.produtoNome) ? (
+                              <span><strong>{item.produtoVinculadoCodigo || item.produtoCodigo}:</strong> {item.produtoVinculadoNome || item.produtoNome}</span>
                             ) : (
                               <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Não vinculado</span>
                             )}
@@ -668,7 +723,7 @@ export default function App() {
 
             <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '1rem' }}>
               <strong>Item do PDF:</strong> {itemEmResolucao.descricao} <br />
-              <strong>Preço Cotado:</strong> R$ {Number(itemEmResolucao.precoCotado || 0).toFixed(2)}
+              <strong>Preço Cotado:</strong> R$ {Number(itemEmResolucao.precoUnitario ?? itemEmResolucao.precoCotado ?? 0).toFixed(2)}
             </p>
 
             <div className="form-group">
@@ -678,7 +733,7 @@ export default function App() {
                 value={produtoVinculoId}
                 onChange={(e) => setProdutoVinculoId(e.target.value)}
               >
-                <option value="">-- Cadastrar como Novo Produto no Catálogo --</option>
+                <option value="">-- Selecione o produto para vincular --</option>
                 {produtos.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.codigo} - {p.nome} (Atual: R$ {Number(p.precoCompraAtual || 0).toFixed(2)})
@@ -697,11 +752,19 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
-                onClick={handleResolverPendencia}
+                className="btn btn-secondary"
+                onClick={() => handleResolverPendencia('IGNORAR')}
                 disabled={loading}
               >
-                Confirmar Reconciliação
+                Ignorar Item
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => handleResolverPendencia('VINCULAR')}
+                disabled={loading || !produtoVinculoId}
+              >
+                Confirmar Vínculo
               </button>
             </div>
           </div>

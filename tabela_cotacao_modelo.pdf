@@ -1,0 +1,86 @@
+%PDF-1.4
+% PriceOps Official Model Test File
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 2635 >>
+stream
+0.118 0.161 0.231 rg
+40 725 515 75 re f
+0.145 0.388 0.922 rg
+40 721 515 4 re f
+0.2 0.255 0.333 rg
+40 670 515 24 re f
+0.886 0.910 0.941 RG 0.5 w
+40 646 m 555 646 l S
+0.96 0.97 0.98 rg
+40 624 515 22 re f
+0.886 0.910 0.941 RG 0.5 w
+40 624 m 555 624 l S
+0.886 0.910 0.941 RG 0.5 w
+40 602 m 555 602 l S
+0.96 0.97 0.98 rg
+40 580 515 22 re f
+0.886 0.910 0.941 RG 0.5 w
+40 580 m 555 580 l S
+0.886 0.910 0.941 RG 0.5 w
+40 558 m 555 558 l S
+0.96 0.97 0.98 rg
+40 536 515 22 re f
+0.886 0.910 0.941 RG 0.5 w
+40 536 m 555 536 l S
+0.886 0.910 0.941 RG 0.5 w
+40 514 m 555 514 l S
+0.96 0.97 0.98 rg
+40 492 515 22 re f
+0.886 0.910 0.941 RG 0.5 w
+40 492 m 555 492 l S
+0.8 0.83 0.88 RG 1 w
+40 492 515 202 re S
+0.94 0.96 0.98 rg 0.75 0.82 0.9 RG 0.8 w
+40 407 515 55 re B
+BT /F1 15 Tf 1 1 1 rg 55 770 Td (ALL NATIONS INFORMATICA - TABELA DE PRECOS) Tj ET
+BT /F2 9 Tf 0.85 0.9 0.95 rg 55 750 Td (Fornecedor Homologado: All Nations Comercio Exterior S.A. | CNPJ: 68.552.215/0001-80) Tj ET
+BT /F2 8.5 Tf 0.7 0.75 0.8 rg 55 735 Td (Cotacao Oficial de Precos | Vigencia: 11/2026 | Sistema Integrado PriceOps) Tj ET
+BT /F1 8.5 Tf 1 1 1 rg 48 678 Td (CODIGO | DESCRICAO DO PRODUTO | PRECO UNITARIO | QUANTIDADE) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 653 Td (INF-01 | Mouse Optico USB 1000 DPI Preto | R$ 19,90 | 50) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 631 Td (INF-02 | Cabo HDMI 2.0 4K Ultra HD 1.5m Blindado | R$ 15,50 | 120) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 609 Td (INF-03 | Teclado ABNT2 USB Slim Conforto | R$ 34,50 | 45) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 587 Td (INF-04 | Pendrive 64GB USB 3.0 Ultra Speed | R$ 215,00 | 30) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 565 Td (INF-05 | Headset Corporativo P2 com Microfone e Controle | R$ 52,90 | 40) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 543 Td (INF-06 | Monitor LED 24 Polegadas IPS Full HD 75Hz HDMI | R$ 589,00 | 15) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 521 Td (INF-07 | SSD NVMe M.2 500GB PCIe 4.0 Alta Velocidade | R$ 249,90 | 25) Tj ET
+BT /F2 9.5 Tf 0.1 0.1 0.1 rg 48 499 Td (NOVO-99 | Suporte Articulado para Monitor Mesa Ergonomico | R$ 119,00 | 10) Tj ET
+BT /F1 8.5 Tf 0.15 0.25 0.4 rg 50 447 Td (INFORMACOES COMERCIAIS E REGRAS DE FORNECIMENTO:) Tj ET
+BT /F2 8 Tf 0.3 0.35 0.4 rg 50 434 Td (Condicoes comerciais: Prazo de pagamento em 28 dias faturado - Frete CIF para compras corporativas.) Tj ET
+BT /F2 8 Tf 0.3 0.35 0.4 rg 50 422 Td (Validade dos precos cotados: 30 dias apos a emissao desta tabela. Sujeito a disponibilidade de estoque.) Tj ET
+BT /F2 8 Tf 0.4 0.45 0.5 rg 50 410 Td (Documento gerado como modelo de teste oficial para importacao e conciliacao automatica no PriceOps.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000045 00000 n 
+0000000094 00000 n 
+0000000151 00000 n 
+0000000287 00000 n 
+0000000389 00000 n 
+0000000486 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3173
+%%EOF

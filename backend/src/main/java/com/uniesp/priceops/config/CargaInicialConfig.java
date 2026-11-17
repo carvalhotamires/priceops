@@ -30,8 +30,14 @@ public class CargaInicialConfig {
                         "210.00", "349.00", 12, 4);
                 Produto inf05 = criarProduto("INF-05", "Headset Corporativo P2", "Áudio e Periféricos", "UN",
                         "48.00", "89.90", 25, 6);
+                Produto inf06 = criarProduto("INF-06", "Monitor LED 24 Polegadas IPS Full HD", "Monitores", "UN",
+                        "550.00", "899.00", 15, 5);
+                Produto inf07 = criarProduto("INF-07", "SSD NVMe M.2 500GB PCIe 4.0", "Armazenamento", "UN",
+                        "230.00", "399.00", 25, 8);
+                Produto inf08 = criarProduto("NOVO-99", "Suporte Articulado para Monitor Mesa", "Ergonomia e Suportes", "UN",
+                        "95.00", "179.00", 20, 5);
 
-                produtoRepository.saveAll(List.of(inf01, inf02, inf03, inf04, inf05));
+                produtoRepository.saveAll(List.of(inf01, inf02, inf03, inf04, inf05, inf06, inf07, inf08));
             }
 
             if (fornecedorRepository.count() == 0) {
