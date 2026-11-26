@@ -5,10 +5,8 @@ import com.uniesp.priceops.dto.CotacaoFornecedorDto;
 import com.uniesp.priceops.dto.VariacaoHistoricaProdutoDto;
 import com.uniesp.priceops.model.HistoricoPreco;
 import com.uniesp.priceops.model.Produto;
-import com.uniesp.priceops.repository.FornecedorRepository;
 import com.uniesp.priceops.repository.HistoricoPrecoRepository;
 import com.uniesp.priceops.repository.ProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,14 +20,14 @@ public class AnalisePrecoService {
     private static final BigDecimal CINCO_NEGATIVO = new BigDecimal("-5.00");
     private static final BigDecimal QUINZE_POSITIVO = new BigDecimal("15.00");
 
-    @Autowired
-    private ProdutoRepository produtoRepository;
+    private final ProdutoRepository produtoRepository;
+    private final HistoricoPrecoRepository historicoPrecoRepository;
 
-    @Autowired
-    private HistoricoPrecoRepository historicoPrecoRepository;
-
-    @Autowired(required = false)
-    private FornecedorRepository fornecedorRepository;
+    public AnalisePrecoService(ProdutoRepository produtoRepository,
+                               HistoricoPrecoRepository historicoPrecoRepository) {
+        this.produtoRepository = produtoRepository;
+        this.historicoPrecoRepository = historicoPrecoRepository;
+    }
 
     /**
      * Calcula a variação temporal de preços de um produto, oscilações recentes e menor histórico.

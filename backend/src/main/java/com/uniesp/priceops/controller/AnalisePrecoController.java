@@ -3,7 +3,6 @@ package com.uniesp.priceops.controller;
 import com.uniesp.priceops.dto.ComparativoPrecoProdutoResponseDto;
 import com.uniesp.priceops.dto.VariacaoHistoricaProdutoDto;
 import com.uniesp.priceops.service.AnalisePrecoService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,11 +12,14 @@ import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/analise-precos")
-@CrossOrigin(origins = "*") // Permite integração direta com o frontend React
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"})
 public class AnalisePrecoController {
 
-    @Autowired
-    private AnalisePrecoService analisePrecoService;
+    private final AnalisePrecoService analisePrecoService;
+
+    public AnalisePrecoController(AnalisePrecoService analisePrecoService) {
+        this.analisePrecoService = analisePrecoService;
+    }
 
     @GetMapping("/produtos/{produtoId}/variacao")
     public ResponseEntity<?> obterVariacaoHistorica(@PathVariable Long produtoId) {

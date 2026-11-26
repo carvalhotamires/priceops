@@ -6,7 +6,6 @@ import com.uniesp.priceops.dto.VariacaoHistoricaProdutoDto;
 import com.uniesp.priceops.model.Fornecedor;
 import com.uniesp.priceops.model.HistoricoPreco;
 import com.uniesp.priceops.model.Produto;
-import com.uniesp.priceops.repository.FornecedorRepository;
 import com.uniesp.priceops.repository.HistoricoPrecoRepository;
 import com.uniesp.priceops.repository.ProdutoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,9 +35,6 @@ class AnalisePrecoServiceTest {
 
     @Mock
     private HistoricoPrecoRepository historicoPrecoRepository;
-
-    @Mock
-    private FornecedorRepository fornecedorRepository;
 
     @InjectMocks
     private AnalisePrecoService analisePrecoService;
