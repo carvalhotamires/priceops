@@ -1,0 +1,59 @@
+name: Build e SonarCloud
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, Testes e Análise SonarCloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Instalar Fontconfig e Fontes TrueType (Headless PDFBox)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core
+
+      - name: Dar permissão ao Maven Wrapper
+        run: chmod +x backend/mvnw
+
+      - name: Executar build e testes
+        working-directory: backend
+        run: ./mvnw -B clean verify
+
+      - name: Enviar análise para o SonarCloud
+        working-directory: backend
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=carvalhotamires
+          -Dsonar.projectKey=carvalhotamires_priceops
